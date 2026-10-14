@@ -51,16 +51,7 @@ Se desactivó DHCP IPv4 y se asignó la dirección 20.0.0.5/24 mediante Netplan.
 
 El bloque siguiente representa la configuración mínima requerida. Sustituir INTERFAZ_REAL por el nombre obtenido con ip -br address; no es una transcripción exacta del archivo de la captura. Para disponer de salida a Internet, añadir la ruta por defecto y los servidores DNS correspondientes a la Red NAT configurada, cuyos valores están pendientes de confirmar.
 
-```yaml
-network:
-  version: 2
-  renderer: networkd
-  ethernets:
-    INTERFAZ_REAL:
-      dhcp4: false
-      addresses:
-        - 20.0.0.5/24
-```
+
 
 Guardar la configuración en el archivo YAML activo de /etc/netplan/, evitando definiciones incompatibles de la misma interfaz. Usar espacios, nunca tabulaciones.
 
@@ -86,23 +77,14 @@ Editar el archivo de resolución local:
 ```bash
 sudo nano /etc/hosts
 ```
+<img src="capturas/Captura%20de%20pantalla%202026-10-13%20184408.png"/>
 
 Añadir, conservando las entradas existentes de localhost:
-
-```text
-20.0.0.5 ldapserver.planetafp.local ldapserver
-```
-
 Esta entrada permite resolver el FQDN y el alias en la propia VM sin depender de un servidor DNS para ese nombre. No publica el nombre para otras máquinas.
 
-Comprobar:
+<img src="capturas/Captura%20de%20pantalla%202026-10-13%20184541.png" 
 
-```bash
-getent hosts ldapserver.planetafp.local
-getent hosts ldapserver
-```
-
-Resultado esperado: ambos nombres resuelven a 20.0.0.5. No se ha identificado una captura específica de este paso entre las evidencias descritas.
+Resultado esperado: resuelve a 20.0.0.5
 
 ### Paso 3. Instalación del software
 
@@ -112,10 +94,7 @@ Con la conectividad de la Red NAT operativa, actualizar los índices de paquetes
 sudo apt update
 sudo apt install slapd ldap-utils
 ```
-
-Durante la instalación, el asistente puede solicitar la contraseña del administrador LDAP. La captura documenta esa pantalla. La contraseña no se reproduce en el playbook.
-
-<img src="capturas/Captura%20de%20pantalla%202026-10-13%20163516.png" alt="Solicitud de contraseña del administrador durante la configuración de slapd" />
+<img src="capturas/Captura%20de%20pantalla%202026-10-13%20185947.png"/>
 
 ### Paso 4. Reconfiguración del servicio
 
