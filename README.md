@@ -1,3 +1,6 @@
+<details>
+<summary><h2><b> 👩‍💻Playbook/OpenLDAP</b></h2></summary>
+
 # Playbook de despliegue técnico de OpenLDAP
 
 Autor: Jam Luis Arango Jiménez
@@ -77,7 +80,7 @@ Editar el archivo de resolución local:
 ```bash
 sudo nano /etc/hosts
 ```
-<img src="capturas/Captura%20de%20pantalla%202026-10-13%20184408.png"/>
+<img src="capturas/Captura%20de%20pantalla%202026-10-14%20184408.png" alt="aplicación de sudo nano /etc/hosts" /> 
 
 Añadir, conservando las entradas existentes de localhost:
 Esta entrada permite resolver el FQDN y el alias en la propia VM sin depender de un servidor DNS para ese nombre. No publica el nombre para otras máquinas.
@@ -94,7 +97,7 @@ Con la conectividad de la Red NAT operativa, actualizar los índices de paquetes
 sudo apt update
 sudo apt install slapd ldap-utils
 ```
-<img src="capturas/Captura%20de%20pantalla%202026-10-13%20185947.png"/>
+<img src="capturas/Captura%20de%20pantalla%202026-10-14%20185947.png" alt="comprobación de instalación de slapd-utils" />
 
 ### Paso 4. Reconfiguración del servicio
 
@@ -291,85 +294,5 @@ dc=planetafp,dc=local
     └── uid=jam
 ```
 
-Esta validación demuestra autenticación LDAP; no configura por sí sola el inicio de sesión de usuarios Linux, que requiere integración adicional del cliente.
+Esta validación demuestra autenticación LDAP; no configura por sí sola el inicio de sesión de usuarios, que requiere integración adicional del cliente.
 
-## E. Control de errores y troubleshooting
-
-### 1. No such object (32)
-
-Se observó durante las búsquedas. Puede indicar una base o un padre inexistente, un DN incorrecto o una búsqueda que utiliza una base por defecto inadecuada. En la práctica se corrigió el comando incluyendo explícitamente la base:
-
-```bash
-ldapsearch -x -LLL -H ldap://localhost -b 'dc=planetafp,dc=local' -s base '(objectClass=*)' dn
-```
-
-Para una inserción, comprobar que la base existe y que ou.ldif se importa antes que jam.ldif. Revisar siempre el comando y el mensaje completo; el código por sí solo no identifica una causa única.
-
-### 2. Already exists (68)
-
-Apareció al intentar añadir una entrada ya existente. No es necesario duplicarla. Comprobar con una consulta autenticada:
-
-```bash
-ldapsearch -x -LLL -H ldap://localhost -D 'cn=admin,dc=planetafp,dc=local' -W -b 'ou=Usuarios,dc=planetafp,dc=local' -s base '(objectClass=*)' dn ou
-```
-
-Si hay que cambiar atributos de una entrada existente, usar ldapmodify en lugar de volver a crearla con ldapadd.
-
-### 3. Unauthenticated bind (DN with no password) disallowed (53)
-
-Este mensaje adicional indica que el cliente presentó un DN sin contraseña de autenticación. Distinguir la contraseña nueva del usuario de la contraseña con la que se autentica el administrador. Comprobar el bind por separado con ldapwhoami y -W; no desactivar las restricciones del servidor para solventarlo.
-
-### 4. Invalid credentials (49) y restablecimiento del administrador
-
-Se observó cuando el bind no validaba las credenciales. Verificar el DN y la contraseña; el error no demuestra por sí solo que la entrada exista ni que el único problema sea una contraseña incorrecta.
-
-Para restablecer al administrador se utilizó acceso local a cn=config. Identificar primero el DN de configuración y el administrador reales:
-
-```bash
-sudo ldapsearch -Q -LLL -Y EXTERNAL -H ldapi:/// -b cn=config '(olcSuffix=dc=planetafp,dc=local)' dn olcRootDN
-```
-
-En la práctica se utilizó olcDatabase={1}mdb,cn=config. Generar un hash:
-
-```bash
-slappasswd
-```
-
-slappasswd solo genera el hash; no cambia la contraseña del servidor. Preparar admin_password.ldif con el hash completo generado, sustituyendo el marcador siguiente:
-
-```ldif
-dn: olcDatabase={1}mdb,cn=config
-changetype: modify
-replace: olcRootPW
-olcRootPW: HASH_COMPLETO_GENERADO_POR_SLAPPASSWD
-```
-
-Aplicar y comprobar:
-
-```bash
-sudo ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f admin_password.ldif
-ldapwhoami -x -H ldap://localhost -D 'cn=admin,dc=planetafp,dc=local' -W
-```
-
-La línea modifying entry anuncia el intento de modificación; confirmar que no hay errores posteriores y que ldapwhoami autentica correctamente. No guardar hashes ni contraseñas en el repositorio.
-
-### 5. Prompt > y lista de opciones
-
-El prompt > de Bash indica una entrada incompleta, por ejemplo una comilla sin cerrar. Pulsar Ctrl+C y volver a ejecutar el comando desde el prompt normal.
-
-Si una herramienta muestra su ayuda, revisar la primera línea del error y las opciones. ldappasswd cambia contraseñas; ldapwhoami verifica la identidad. La opción -s de ldappasswd establece una contraseña y -S la solicita de forma interactiva. Que aparezca la ayuda no demuestra que -s sea incompatible con la versión instalada.
-
-### 6. Prevención de errores LDIF y de resolución local
-
-En LDIF, separar entradas mediante una línea vacía, no introducir espacios iniciales accidentales y conservar los DN exactos. Antes de importar, revisar el archivo con cat -n. Si el FQDN no resuelve, comprobar la línea de /etc/hosts con getent hosts.
-
-### Seguridad y alcance
-
-Los ejemplos utilizan el servidor local de la VM. Para conexiones de red con autenticación simple, configurar TLS antes de transmitir credenciales. Usar contraseñas únicas y robustas, -W en lugar de escribirlas en los comandos y revisar las capturas antes de publicar.
-
-### Datos pendientes de completar
-
-- Confirmar el nombre real de interfaz, la puerta de enlace y los servidores DNS de Netplan.
-- Registrar las respuestas reales del asistente sobre eliminación al purgar y movimiento de la base anterior.
-- Añadir evidencia específica de /etc/hosts y de los esquemas cargados.
-- Sustituir la captura final por una versión sin contraseñas visibles y rotar las credenciales de laboratorio expuestas.
